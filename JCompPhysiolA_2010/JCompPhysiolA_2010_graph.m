@@ -1,0 +1,146 @@
+%% Estimating the cone sensitivities of birds
+% Olle Håstad July 2008, cleaned and translated 2016
+% 
+% Calculations for figure 1 in 
+% *Ödeen, A. & Håstad, O. (2010)*. 
+% Pollinating birds differ in spectral sensitivity. 
+% _Journal of Comparative Physiology. A, Neuroethology, Sensory, Neural, and Behavioral Physiology_ , 
+% 196(2), 91–6. http://doi.org/10.1007/s00359-009-0474-z
+% 
+% The calculations of cone sensitivity comes from 
+% Govardovskii et al 2000 (Vis NeuroSci 17:509-528)
+% and the oildroplet transmittance are from
+% Hart and Vorobyev 2005 (J Comp Physiol A. 191:381-392)
+
+%% Test the functions
+%  Run unit tests for the sensitivity calculation functions. Should pass
+%  without errors.
+
+test_cone_sens();
+
+%% Should the results be exported?
+% Set |export_sensitivities| to true for all results to be exported to
+% csv-files. A folder called _sens_out_ will be created in the working directory
+% for the created files.
+
+export_sensitivities = true;
+
+if(export_sensitivities)
+    [s,mess,messid] = mkdir('sens_out');
+end
+
+%% Ocular medium transmittance
+
+% Ocular medium data from Nathan Hart (pers. comm.)
+ocular_media = load('ocular_media.mat');
+
+% Both pollinators should use same medium from starling
+ocular_medium = ocular_media.starling; 
+
+% Chicken should use peafowl
+pf = ocular_media.peafowl;
+spf = pf;
+
+%% Set up the indata for the sensitivity calcs
+% The l-0 and b values are from H&V and need to be matched to the l-max 
+% values. The value for SWS1, 200nm, is just a dummy value and removes 
+% the effect of the oil droplet for that cone.
+
+% The four values in the structs are for each cone type
+pigment_l_max = struct(...
+    'budgie', [371, 440, 499, 566], ...
+    'shearwater', [406, 450, 503, 566], ...
+    'chicken', [418,453,507,571]);
+
+oil_droplet_b = struct(...
+    'budgie', [0.086, 0.086, 0.033, 0.054], ...
+    'shearwater', [0.086, 0.086, 0.061, 0.059], ...
+    'chicken',[0.088, 0.088, 0.074, 0.054]);
+
+oil_droplet_l_0 = struct(...
+    'budgie', [200, 425, 537, 587], ...
+    'shearwater', [200, 457, 524, 582], ...
+    'chicken', [200, 457, 520, 582]);
+
+% Spectral span [nm] to calculate
+span = 300:700;
+
+%% The sunbird cone sensitivities are based on budgie
+sensitivities_sunbird = calc_cone_sens( ...
+    pigment_l_max.budgie, ...
+    oil_droplet_b.budgie, ...
+    oil_droplet_l_0.budgie, ...
+    ocular_medium, ...
+    span);
+
+if(export_sensitivities) 
+    writetable(...
+        array2table(...
+            sensitivities_sunbird',...
+            'VariableNames',...
+            {'uvs' 'sws' 'mws' 'lws'}),...
+        'sens_out/sensitivities_sunbird.csv');
+end
+
+plot(span,sensitivities_sunbird'); 
+
+%% The hummingbird cone sensitivities are based on shearwater
+sensitivities_hummingbird = calc_cone_sens( ...
+    pigment_l_max.shearwater, ...
+    oil_droplet_b.shearwater, ...
+    oil_droplet_l_0.shearwater, ...
+    ocular_medium, ...
+    span);
+
+if(export_sensitivities) 
+    writetable(...
+        array2table(...
+            sensitivities_hummingbird',...
+            'VariableNames',...
+            {'uvs' 'sws' 'mws' 'lws'}),...
+        'sens_out/sensitivities_hummingbird.csv');
+end
+
+plot(span,sensitivities_hummingbird'); 
+
+%% Chicken
+sensitivities_chicken = calc_cone_sens(...
+    pigment_l_max.chicken, ...
+    oil_droplet_b.chicken, ...
+    oil_droplet_l_0.chicken, ...
+    spf, ...
+    span);
+
+if(export_sensitivities) 
+    writetable(...
+        array2table(...
+            sensitivities_chicken',...
+            'VariableNames',...
+            {'uvs' 'sws' 'mws' 'lws'}),...
+        'sens_out/sensitivities_chicken.csv');
+end
+
+plot(span,sensitivities_chicken'); 
+
+
+%% Relative sensitivity of the vision systems
+%  High positive values means that the sensitivity at the wavelength is 
+%  higher for the sunbird. Results from this kind of "back of the envelope"
+%  calculations should be treated with some caution. They do however
+%  help to identify spectral regions where we can expect to find
+%  interresting adaptations.
+
+sens_diff = sensitivities_sunbird - sensitivities_hummingbird;
+
+if(export_sensitivities)
+    writetable(...
+        array2table(...
+            sens_diff',...
+            'VariableNames',...
+            {'uvs' 'sws' 'mws' 'lws'}),...
+        'sens_out/sens_diff.csv');
+end
+
+plot(span,sens_diff'); 
+
+
